@@ -1,5 +1,5 @@
 program main
-  use general_stress_equations, only: calc_mean_stress, calc_stress_invariants
+  use mod_stress_invariants, only: calc_mean_stress, calc_stress_invariants
   use associative_mohr_coulomb, only: MohrCoulombYieldSurface
   use mod_mohr_coulomb_state_params, only: MohrCoulombStateParameters
   use mod_mohr_coulomb_stress_params, only: MohrCoulombStressParams

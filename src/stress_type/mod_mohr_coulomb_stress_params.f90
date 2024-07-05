@@ -1,11 +1,12 @@
 module mod_mohr_coulomb_stress_params
-    use general_stress_equations, only : calc_stress_invariants
+    use kind_precision_module, only : dp
+    use mod_stress_invariants, only : calc_stress_invariants
     implicit none
     
     type :: MohrCoulombStressParams
-        real :: p
-        real :: q
-        real :: theta
+        real(kind = dp) :: p
+        real(kind = dp) :: q
+        real(kind = dp) :: theta
     contains
         procedure, pass(self) :: update_stress_invariants
     end type
@@ -13,7 +14,7 @@ contains
 
     subroutine update_stress_invariants(self, sigma)
         class(MohrCoulombStressParams), intent(inout) :: self
-        real, intent(in) :: sigma(6)
+        real(kind = dp), intent(in) :: sigma(6)
         
         ! Evaluate and store the stress invariants
         call calc_stress_invariants(sigma, self%p, self%q, self%theta)
