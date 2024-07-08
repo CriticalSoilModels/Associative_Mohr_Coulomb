@@ -6,7 +6,8 @@ program test_calc_stress_invariants
 
     use mod_stress_invariants, only: calc_mean_stress, calc_J2_invariant, &
                                         calc_J_invariant, calc_deviatoric_stress, &
-                                        calc_s_determinant, calc_lode_angle_bar_s
+                                        calc_s_determinant, calc_lode_angle_bar_s, &
+                                        calc_dJ3_dsigma_2, calc_dJ3_dsigma
 
     use mod_general_voigt, only: voigt_2_matrix
 
@@ -28,6 +29,9 @@ program test_calc_stress_invariants
     real(kind = dp) :: p_eig, J2_eig, J_eig, q_eig, J3_eig, lode_angle_eig
     real(kind = dp) :: test_det_dev
     integer(kind = i32) :: i
+
+    ! Derivatives
+    real(kind = dp) :: dJ3_dsigma(6), dJ3_dsigma_2(6)
 
 
     ! Test case 1: Pure hydrostatic stress
@@ -90,6 +94,17 @@ program test_calc_stress_invariants
     call test_assert("Test 4: J3 Invariant Calc: ,", J3, J3_eig, tolerance)
     call test_assert("Test 4: Lode Angle Calc  : ,", lode_angle, lode_angle_eig, tolerance)
     
+    ! Test the derivatives
+    Sig = [10.0_dp, 20.0_dp, 30.0_dp, 40.0_dp, 50.0_dp, 60.0_dp]
+
+    dJ3_dsigma = calc_dJ3_dsigma(Sig)
+    dJ3_dsigma_2 = calc_dJ3_dsigma_2(Sig)
+
+    print *, "dJ3_dsigma, original: ", dJ3_dsigma
+    print *, "dJ3_dsigma, varsha  : ", dJ3_dsigma_2
+
+    call test_assert_vector("Test 5: dJ3/dsigma: ," , dJ3_dsigma , dJ3_dsigma_2 , tolerance)
+
 contains
     subroutine test_assert(test_name, actual, expected, tol)
         character(len=*), intent(in) :: test_name
@@ -101,5 +116,16 @@ contains
             print *, "Test '", trim(test_name), "' Passed."
         endif
     end subroutine test_assert
+
+    subroutine test_assert_vector(test_name, actual, expected, tol)
+        character(len=*), intent(in) :: test_name
+        real(kind = dp), intent(in) :: actual(:), expected(:), tol
+
+        if (norm2(actual - expected) > tol) then
+            print *, "Test '", trim(test_name), "' Failed! Expected:", expected, ", Actual:", actual
+        else
+            print *, "Test '", trim(test_name), "' Passed."
+        endif
+    end subroutine test_assert_vector
 
 end program test_calc_stress_invariants

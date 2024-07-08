@@ -393,5 +393,54 @@ contains
       s(1:3) = s(1:3) - mean_stress
 
    end function calc_s_voigt_vector
+   
+   function calc_dJ3_dsigma_2(stress) result(dJ3_dsigma)
+      real(kind = dp), intent(in) :: stress(6)
+      real(kind = dp) :: dJ3_dsigma(6)
+
+      ! Local variables
+      real(kind = dp), parameter :: ONE_NINTH = 1.0_dp/9.0_dp, &
+                                    ONE_THIRD = 1.0_dp/3.0_dp, &
+                                    TWO       = 2.0_dp       , &
+                                    FOUR      = 4.0_dp
+      real(kind = dp) :: sigma_x, sigma_y, sigma_z, tau_xy, tau_yz, tau_zx
+
+      ! Unpack the stress value to make it easier
+      sigma_x = stress(1)
+      sigma_y = stress(2)
+      sigma_z = stress(3)
+      tau_xy  = stress(4)
+      tau_yz  = stress(5)
+      tau_zx  = stress(6)
+
+      ! Calc the dJ3/dsigma_x term
+      dJ3_dsigma(1) = ONE_NINTH * ( TWO*sigma_x**2 - TWO*sigma_x*sigma_y      &
+                                   -  TWO*sigma_x*sigma_z - sigma_y**2        &
+                                   + FOUR*sigma_y*sigma_z - sigma_z**2 )      &
+                    + ONE_THIRD * ( tau_xy**2 - TWO*tau_yz**2 + tau_zx**2)
+      
+      ! Calc the dJ3/dsigma_y term
+      dJ3_dsigma(2) = ONE_NINTH * ( -sigma_x**2 - TWO*sigma_x*sigma_y         &
+                                    -  TWO*sigma_y*sigma_z - sigma_z**2       &
+                                    + FOUR*sigma_x*sigma_z + TWO*sigma_y**2)  &
+                    + ONE_THIRD * ( tau_xy**2 + tau_yz**2 - TWO*tau_zx**2)
+      
+      ! Calc the dJ3/dsigma_z
+      dJ3_dsigma(3) = ONE_NINTH * ( -sigma_x**2 + FOUR*sigma_x*sigma_y        &
+                                 - TWO*sigma_x*sigma_z - sigma_y**2           &
+                                 - TWO*sigma_y*sigma_z + TWO*sigma_z**2 )     &
+                    + ONE_THIRD * ( -TWO*tau_xy**2 + tau_yz**2 + tau_zx**2)
+
+      ! Calc dJ3/tau_xy
+      dJ3_dsigma(4) = TWO*tau_yz*tau_zx + TWO*tau_xy* ONE_THIRD * (sigma_x + sigma_y - TWO*sigma_z) 
+      
+      ! Calc dJ3/tau_yz
+      dJ3_dsigma(5) = TWO*tau_xy*tau_zx + TWO*tau_yz* ONE_THIRD * (-TWO*sigma_x + sigma_y + sigma_z)
+
+      ! Calc dJ3/tau_zx
+      dJ3_dsigma(6) = TWO*tau_xy*tau_yz + TWO*tau_zx* ONE_THIRD * (sigma_x - TWO*sigma_y + sigma_z)
+
+
+   end function calc_dJ3_dsigma_2
 
 end module mod_stress_invariants
