@@ -6,14 +6,14 @@ program test_calc_stress_invariants
 
     use mod_stress_invariants, only: calc_mean_stress, calc_J2_invariant, &
                                         calc_J_invariant, calc_deviatoric_stress, &
-                                        calc_s_determinant, calc_lode_angle
+                                        calc_s_determinant, calc_lode_angle_bar_s
 
-    use mod_eigen_stress_invariants, only: voight_2_matrix
+    use mod_general_voigt, only: voigt_2_matrix
 
     use stdlib_linalg, only: eigh, det
 
     use mod_eigen_stress_invariants, only: calc_eig_mean_stress, calc_eig_J2, calc_eig_J, &
-                                          calc_eig_q, calc_eig_J3, calc_eig_lode_angle
+                                          calc_eig_q, calc_eig_J3, calc_eig_lode_angle_bar_s
 
     implicit none
 
@@ -40,7 +40,7 @@ program test_calc_stress_invariants
     call random_number(Sig)
 
     ! Form the matrix
-    stress_matrix = voight_2_matrix( Sig )
+    stress_matrix = voigt_2_matrix( Sig )
 
     ! Find the eigen values
     call eigh( stress_matrix, stress_eig_vals )
@@ -80,8 +80,8 @@ program test_calc_stress_invariants
     J3_eig = calc_eig_J3( dev_eig_vals )
 
     ! Calc the lode angle
-    lode_angle = calc_lode_angle( Sig )
-    lode_angle_eig = calc_eig_lode_angle( stress_eig_vals )
+    lode_angle = calc_lode_angle_bar_s( Sig )
+    lode_angle_eig = calc_eig_lode_angle_bar_s( stress_eig_vals )
 
     call test_assert("Test 4: Mean Stress Calc: ," , p , p_eig , tolerance)
     call test_assert("Test 4: J2 Invariant Calc: ,", J2, J2_eig, tolerance)

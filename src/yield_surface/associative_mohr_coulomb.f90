@@ -2,18 +2,21 @@ module associative_mohr_coulomb
    ! Have the imports here
    use mod_mohr_coulomb_state_params, only: MohrCoulombStateParameters
    use mod_mohr_coulomb_stress_params, only : MohrCoulombStressParams
-
+   use kind_precision_module, only : dp
+   use integer_precision_module, only : i32
+   
    implicit none
    private
    public :: MohrCoulombYieldSurface
 
    type :: MohrCoulombYieldSurface
-      real :: tolerance = 1e-8               ! tolerance of the yield surface
-      real :: val = 0.0               ! Init value of the yield surface
-      real :: dF_dp, dF_dJ, dF_dtheta ! Derivatives of the yield function wrt. the stress invariants
+      real(kind = dp) :: tolerance               ! tolerance of the yield surface
+      integer(kind = i32) :: max_iterations
+      real(kind = dp) :: val                     ! Init value of the yield surface
+      real(kind = dp) :: dF_dp, dF_dJ, dF_dtheta ! Derivatives of the yield function wrt. the stress invariants
    contains
       procedure, pass(self) :: evaluate_surface
-      procedure, pass(self) :: check_is_outside
+      procedure, pass(self) :: is_yielding
       procedure, nopass     :: calc_g_theta
       procedure, pass(self) :: evaluate_stress_deriv
       procedure, pass(self) :: evaluate_dF_dp
@@ -23,6 +26,16 @@ module associative_mohr_coulomb
    end type MohrCoulombYieldSurface
 
 contains
+
+   subroutine initialize(self, tolerance)
+      class(MohrCoulombYieldSurface), intent(inout) :: self
+      real(kind = dp)    , intent(in) :: tolerance
+
+      ! Set the tolerance of the yield function
+      self%tolerance = tolerance
+      
+      self%val = 0.0_dp ! Set the initial value to zero
+   end subroutine initialize
 
    function calc_g_theta(Xi, stress_var) result(g_theta)
       ! Calculates g(\theta) from Potts and Zdravkovic (Finite element analysis in geotechnical engineering. 2)
@@ -34,8 +47,8 @@ contains
       real :: g_theta_numerator, g_theta_denominator, g_theta
 
       ! Evaluate g(theta)
-      g_theta_numerator   = sin(Xi%fric_angle)
-      g_theta_denominator = cos(stress_var%theta) + sin(stress_var%theta) * sin(Xi%fric_angle) / sqrt(3.0)
+      g_theta_numerator   = sin(Xi%phi)
+      g_theta_denominator = cos(stress_var%lode_angle) + sin(stress_var%lode_angle) * sin(Xi%phi) / sqrt(3.0)
 
       ! Calc g_theta - This is the variable that is returned
       g_theta = g_theta_numerator / g_theta_denominator
@@ -45,7 +58,7 @@ contains
    ! Evaluate the value of the yield function
 
    ! Eqn:
-   !   q - (c'/tan(phi') + p') g(\theta)
+   !   J - (c'/tan(phi') + p') g(\theta)
    !   g(theta) = \frac{ sin(phi') }{ cos(\theta) + \frac{sin(theta) sin(phi)}{ \sqrt{3} } }
    subroutine evaluate_surface(self, Xi, stress_var)
       class(MohrCoulombYieldSurface)   , intent(inout) :: self
@@ -58,10 +71,10 @@ contains
       g_theta =  self%calc_g_theta(Xi, stress_var)
 
       ! Store the value of the yield function in the val param
-      self%val = stress_var%q - ( Xi%cohesion / tan(Xi%fric_angle )  + stress_var%p ) * g_theta
+      self%val = stress_var%J - ( Xi%c / tan(Xi%phi )  + stress_var%p ) * g_theta
    end subroutine
 
-   function check_is_outside(self) result(outside_surface)
+   function is_yielding(self) result(outside_surface)
       class(MohrCoulombYieldSurface), intent(in) :: self
       logical :: outside_surface
       ! Returns true if yielding (ie. F > tolerance)
@@ -71,7 +84,7 @@ contains
          outside_surface = .True.
       end if
 
-   end function check_is_outside
+   end function is_yielding
 
    ! Evalute the yield function derivatives wrt. to stress
    ! Stores the value of the derivatives inside of the function
@@ -157,16 +170,16 @@ contains
       real :: first_term, second_term_numer, second_term_denom, thrid_term, dF_dtheta
 
       ! (c' / tan( \phi' ) + p')
-      first_term = Xi%cohesion/tan(Xi%fric_angle) + stress_var%p
+      first_term = Xi%c/tan(Xi%phi) + stress_var%p
 
       ! sin( \phi' )
-      second_term_numer = sin(Xi%fric_angle)
+      second_term_numer = sin(Xi%phi)
 
       ! [ cos( \theta +  sin( \theta ) sin( \phi' ) / \sqrt(3.0) ) ]^{2}
-      second_term_denom = cos(stress_var%theta) + sin(stress_var%theta) * sin(Xi%fric_angle) / sqrt(3.0)
+      second_term_denom = cos(stress_var%lode_angle) + sin(stress_var%lode_angle) * sin(Xi%phi) / sqrt(3.0)
 
       ! sin ( \phi' ) - cos( \theta ) sin( \phi' ) / sqrt(3.0)
-      thrid_term = sin(stress_var%theta) - cos(stress_var%theta) * sin(Xi%fric_angle) / sqrt(3.0)
+      thrid_term = sin(stress_var%lode_angle) - cos(stress_var%lode_angle) * sin(Xi%phi) / sqrt(3.0)
 
       dF_dtheta  = first_term * second_term_numer/second_term_denom**2 * thrid_term
 

@@ -27,10 +27,10 @@ program main
   type(MohrCoulombYieldSurface) :: yield_surface
 
   ! Initialize parameters
-  Xi%fric_angle = 30.0
-  Xi%cohesion = 10.0
-  stress_var%theta = 45.0
-  stress_var%q = 20.0
+  Xi%phi = 30.0
+  Xi%c = 10.0
+  stress_var%lode_angle = 45.0
+  stress_var%J = 20.0
   stress_var%p = 5.0
 
   ! Evaluate the yield surface
