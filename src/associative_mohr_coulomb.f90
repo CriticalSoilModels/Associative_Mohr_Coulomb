@@ -2,23 +2,23 @@ module associative_mohr_coulomb
    ! Have the imports here
    use mod_mohr_coulomb_state_params, only: MohrCoulombStateParameters
    use mod_mohr_coulomb_stress_params, only : MohrCoulombStressParams
-   use kind_precision_module, only : dp
-   use integer_precision_module, only : i32
-   
+   use kind_precision_module, only : dp, i32
+   use mod_stress_invariants, only: calc_dp_dsigma, calc_dJ_dsigma, calc_dLodeAngle_bar_s_dsigma
+
    implicit none
    private
    public :: MohrCoulombYieldSurface
 
    type :: MohrCoulombYieldSurface
-      real(kind = dp) :: tolerance               ! tolerance of the yield surface
+      real(kind = dp) :: tolerance           ! tolerance of the yield surface
       integer(kind = i32) :: max_iterations
-      real(kind = dp) :: val                     ! Init value of the yield surface
-      real(kind = dp) :: dF_dp, dF_dJ, dF_dtheta ! Derivatives of the yield function wrt. the stress invariants
+      real(kind = dp) :: val                 ! Init value of the yield surface
+      real(kind = dp) :: dF_dsigma(6)        ! Derivatives of the yield function wrt. the stress invariants
    contains
       procedure, pass(self) :: evaluate_surface
       procedure, pass(self) :: is_yielding
       procedure, nopass     :: calc_g_theta
-      procedure, pass(self) :: evaluate_stress_deriv
+      procedure, pass(self) :: evaluate_dF_dsigma
       procedure, pass(self) :: evaluate_dF_dp
       procedure, nopass     :: evaluate_dF_dJ
       procedure, nopass     :: evaluate_dF_dtheta
@@ -88,20 +88,40 @@ contains
 
    ! Evalute the yield function derivatives wrt. to stress
    ! Stores the value of the derivatives inside of the function
-   subroutine evaluate_stress_deriv(self, Xi, stress_var)
+   subroutine evaluate_dF_dsigma(self, Xi, stress_var, stress)
       class(MohrCoulombYieldSurface), intent(inout) :: self
       class(MohrCoulombStateParameters), intent(in) :: Xi
       class(MohrCoulombStressParams)   , intent(in) :: stress_var
+      real(kind = dp), intent(in) :: stress(6)
+      
+      ! Local variables
+      real(kind = dp) :: dF_dp, dF_dJ, dF_dtheta 
+      real(kind = dp) :: dp_dsigma(6), dJ_dsigma(6), dtheta_dsigma(6)
 
       ! Evaluate the derivative of the yield surface wrt. the mean stress
-      self%dF_dp = self%evaluate_dF_dp(Xi, stress_var)
+      dF_dp = self%evaluate_dF_dp(Xi, stress_var)
 
       ! Evaluate the derivative of the yield surface wrt. the deviatoric stress
-      self%dF_dJ = self%evaluate_dF_dJ(Xi, stress_var)
+      dF_dJ = self%evaluate_dF_dJ(Xi, stress_var)
 
       ! Evaluate the derivative of the yield surface wrt. the lode angle
-      self%dF_dtheta = self%evaluate_dF_dtheta(Xi, stress_var)
-   end subroutine evaluate_stress_deriv
+      dF_dtheta = self%evaluate_dF_dtheta(Xi, stress_var)
+
+      ! Evaluate the invariant derivatives
+
+      ! Calc the deriv of p wrt. to stress (No inputs for this function)
+      dp_dsigma = calc_dp_dsigma()
+
+      ! Calc the deriv of J wrt. stress
+      dJ_dsigma = calc_dJ_dsigma(stress)
+
+      ! Calc the deriv of the lode angle wrt. stress
+      dtheta_dsigma = calc_dLodeAngle_bar_s_dsigma(stress)
+
+      ! Evaluate the complete derivative using the product and chain rules
+      self%dF_dsigma = dF_dp * dp_dsigma + dF_dJ * dJ_dsigma + dF_dtheta * dtheta_dsigma
+      
+   end subroutine evaluate_dF_dsigma
 
    ! Calc the derivative of the yield surface wrt. to the mean stress
    function evaluate_dF_dp(self, Xi, stress_var) result(dF_dp)

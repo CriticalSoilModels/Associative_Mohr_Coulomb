@@ -1,8 +1,7 @@
 ! Module contains functions and subroutines that are helpful with working with voigt form
 ! vectors
 module mod_general_voigt
-   use kind_precision_module, only: dp
-   use integer_precision_module, only: i32
+   use kind_precision_module, only: dp, i32
 
    implicit none
 

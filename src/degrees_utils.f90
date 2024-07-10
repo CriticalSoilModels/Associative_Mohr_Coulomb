@@ -1,4 +1,6 @@
 module degrees_utils
+    use kind_precision_module, only: dp
+
     implicit none
     
     private
@@ -6,7 +8,6 @@ module degrees_utils
 
 contains
     pure function convert_deg_2_radians(degrees) result(radians)
-        use kind_precision_module, only: dp
         use global_variables, only: PI
 
         real(kind = dp), intent(in) :: degrees

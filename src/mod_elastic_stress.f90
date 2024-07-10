@@ -1,6 +1,5 @@
 module mod_elastic_stress
-    use kind_precision_module, only: dp
-    use integer_precision_module, only: i32
+    use kind_precision_module, only: dp, i32
 
     implicit none
 

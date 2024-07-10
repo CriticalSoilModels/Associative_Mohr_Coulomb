@@ -1,6 +1,5 @@
 module mod_stress_invariants
-   use kind_precision_module, only : dp
-   use integer_precision_module, only: i32
+   use kind_precision_module, only : dp, i32
 
    use mod_general_voigt, only: multiply_voigt_vectors, get_voigt_identity_vector, trace_voigt_vector
 
@@ -153,7 +152,7 @@ contains
 
       ! Local variables
       real(kind = dp) :: J, det_s, inside
-      real(kind = dp) :: zero = 0.0, one = 1.0, two = 2.0, three = 3.0
+      real(kind = dp) :: one = 1.0, two = 2.0, three = 3.0
 
       ! TODO: Need to update this function to catch the edge cases
 
