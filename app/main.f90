@@ -1,42 +1,33 @@
 program main
-  use mod_stress_invariants, only: calc_mean_stress, calc_stress_invariants
-  use associative_mohr_coulomb, only: MohrCoulombYieldSurface
-  use mod_mohr_coulomb_state_params, only: MohrCoulombStateParameters
-  use mod_mohr_coulomb_stress_params, only: MohrCoulombStressParams
+  use kind_precision_module, only: dp, i32
+  use mod_UMAT_assoc_MC, only: UMAT_assoc_MC
 
   implicit none
   
-  ! real :: stress(6), mean_stress, dev_stress, lode_angle
+  ! Yield surface values
+  real(kind = dp)    , parameter :: tolerance = 1e-8
+  integer(kind = i32), parameter :: max_iterations = 1000
 
-  ! stress(:) = 1.0
+  real(kind = dp) :: stress(6), strain_increment(6)
+  real(kind = dp) :: phi, c, G, enu
+  real(kind = dp) :: state_vars(2), props(2)
+  real(kind = dp) :: stiff_matrix(6,6)
+  
+  stiff_matrix(:, :) = 0.0_dp
+  
+  ! Initialize state parameters
+  c   = 10.0 ! cohesion
+  phi = 30.0 ! friction angle, Expects value in degrees internally changes to radians
+  G   = 50   ! Shear modulus
+  enu = 0.0 ! Poisson's ratio
 
-  ! mean_stress = calc_mean_stress(stress)
+  state_vars = [c, phi]
+  props      = [G, enu] 
 
-  ! print *, mean_stress
+  ! Init the mock stress state
+  stress = [20.0_dp, 10.0_dp, 10.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]
+  strain_increment = [0.5_dp, 0.1_dp, 0.001_dp, 10.0_dp, 0.00_dp, 0.000_dp]
 
-  ! call calc_stress_invariants(stress, mean_stress, dev_stress, lode_angle)
-
-  ! print *, "Mean Stress", mean_stress
-
-  ! print *, "Deviatoric Stress", dev_stress
-
-  ! print *, "Lode angle", lode_angle
-
-  type(MohrCoulombStateParameters) :: Xi
-  type(MohrCoulombStressParams) :: stress_var
-  type(MohrCoulombYieldSurface) :: yield_surface
-
-  ! Initialize parameters
-  Xi%phi = 30.0
-  Xi%c = 10.0
-  stress_var%lode_angle = 45.0
-  stress_var%J = 20.0
-  stress_var%p = 5.0
-
-  ! Evaluate the yield surface
-  call yield_surface%evaluate_surface(Xi, stress_var)
-
-  ! Print the result
-  print *, "Yield Surface Value:", yield_surface%val
+  call UMAT_assoc_MC(stress, strain_increment, state_vars, props, stiff_matrix, max_iterations)
 
 end program main

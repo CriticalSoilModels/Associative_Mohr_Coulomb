@@ -1,32 +1,32 @@
-module mod_mohr_coulomb_state_params
-    use kind_precision_module, only: dp ! Import double precision floats
+module class_assoc_MC_state_params
     use degrees_utils, only: convert_deg_2_radians
+    use kind_precision_module, only: dp ! Import double precision floats
     implicit none
     
-    type :: MohrCoulombStateParameters
+    type, public :: assoc_MC_state_params
 
-        real(kind = dp) :: c    ! Cohesion
         real(kind = dp) :: phi  ! Friction angle
+        real(kind = dp) :: c    ! Cohesion
         real(kind = dp) :: G    ! Shear modulus
         real(kind = dp) :: enu   ! Poissons ratio
     
-    contains
-        procedure, pass(self) :: initialize
-
     end type
+
+    interface assoc_MC_state_params
+        module procedure initialize
+    end interface
 
 contains
 
-    subroutine initialize(self, c, phi, G, nu)
-        class(MohrCoulombStateParameters), intent(inout) :: self
-        real(kind = dp), intent(in) :: c, phi, G, nu
+    function initialize(c, phi, G, enu) result(this)
+        real(kind = dp), intent(in) :: c, phi, G, enu
+        type(assoc_MC_state_params) :: this
 
-        self%phi = convert_deg_2_radians(phi) ! Set the friction angle for the model and convert it to radians
-        print *, self%phi
+        this%phi = convert_deg_2_radians(phi) ! Set the friction angle for the model and convert it to radians
         
-        self%c  = c  ! Set the cohesion for the model
-        self%G  = G  ! Set the shear modulus
-        self%enu = nu ! Set the poisson's ratio
-    end subroutine initialize
+        this%c  = c  ! Set the cohesion for the model
+        this%G  = G  ! Set the shear modulus
+        this%enu = enu ! Set the poisson's ratio
+    end function initialize
     
-end module mod_mohr_coulomb_state_params
+end module class_assoc_MC_state_params

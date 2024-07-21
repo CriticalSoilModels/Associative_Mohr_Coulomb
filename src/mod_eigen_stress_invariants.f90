@@ -104,6 +104,7 @@ contains
         ! Calc the lode angle
         lode_angle = atan( inside / sqrt( 3.0_dp ) )
         
+        print *, "Eig val lode angle: ", lode_angle
     end function
 
 end module mod_eigen_stress_invariants

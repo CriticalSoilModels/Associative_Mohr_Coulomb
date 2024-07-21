@@ -1,7 +1,7 @@
 module mod_stress_invariants
    use kind_precision_module, only : dp, i32
 
-   use mod_general_voigt, only: multiply_voigt_vectors, get_voigt_identity_vector, trace_voigt_vector
+   use mod_general_voigt, only: multiply_voigt_vectors, get_3d_voigt_identity_vector, trace_voigt_vector
 
    implicit none
 
@@ -19,40 +19,41 @@ contains
 
    ! From Potts and Zdravkoic -> J = \sqrt{J_{2}}
 
-   function calc_mean_stress(stress) result(mean_stress)
+   pure function calc_mean_stress(stress) result(mean_stress)
       real(kind = dp), intent(in) :: stress(:)
-
+      real(kind = dp) :: mean_stress
       ! Local variables
-      real(kind = dp) :: mean_stress, three = 3.0
+      real(kind = dp), parameter :: three = 3.0_dp
       
       mean_stress = sum(stress(1:3)) / three
 
    end function calc_mean_stress
 
-   function calc_deviatoric_stress(stress) result(deviatoric_stress)
+   pure function calc_q_invariant(stress) result(q)
       real(kind = dp), intent(in) :: stress(6)
       
-      real(kind = dp) :: deviatoric_stress
+      real(kind = dp) :: q
       
       ! Local variables
-      real(kind = dp) :: J2, three = 3.0
-
+      real(kind = dp) :: J2
+      real(kind = dp), parameter :: three = 3.0_dp
+ 
       ! Calc the J2 invariant
       J2 = calc_J2_invariant(stress)
 
-      deviatoric_stress = sqrt( three * J2 )
+      q = sqrt( three * J2 )
 
-   end function calc_deviatoric_stress
+   end function calc_q_invariant
 
    ! Calculates the J2 stress invariant
-   function calc_J2_invariant(stress) result(J2)
+   pure function calc_J2_invariant(stress) result(J2)
       real(kind = dp), intent(in) :: stress(6)
       real(kind = dp) :: J2
       
       ! Local variables
       real(kind = dp) :: mean_stress
-      real(kind = dp) :: one_half = 0.5, two = 2.0
       real(kind = dp) :: stress_copy(6)
+      real(kind = dp), parameter :: one_half = 0.5, two = 2.0
       
       ! Make a local copy of the stress vector
       stress_copy = stress
@@ -77,7 +78,7 @@ contains
       
    end function calc_J2_invariant
 
-   function calc_s_determinant(stress) result(s_det)
+   pure function calc_s_determinant(stress) result(s_det)
       real(kind = dp), intent(in) :: stress(6)
       real(kind = dp) :: s_det
 
@@ -87,9 +88,6 @@ contains
                          fifth_term
       real(kind = dp), parameter :: one = 1.0, two = 2.0
       real(kind = dp) :: stress_copy(6) ! Used to make a local copy of the stress vector
-      
-      logical :: DEBUG = .True.
-
 
       ! Make a copy just to be safe
       stress_copy = stress
@@ -123,9 +121,10 @@ contains
 
    end function
 
-   function calc_J_invariant(stress) result(J)
+   pure function calc_J_invariant(stress) result(J)
       real(kind = dp), intent(in) :: stress(6)
       real(kind = dp) :: J
+
       ! Local variables
       real(kind = dp) :: J2
 
@@ -137,22 +136,29 @@ contains
    end function calc_J_invariant
 
 
-   function calc_lode_angle_bar_s(stress) result(lode_angle)
-      ! TODO: The lode angle should be bounded between
-      ! -pi/6 <= \theta <= pi / 6
-      ! This equation comes from Potts and Zdravković
+   pure function calc_lode_angle_s(stress) result(lode_angle)
+   ! TODO: The lode angle should be bounded between
+   ! -pi/6 <= \theta <= pi / 6
+   ! -pi/6 from trx compression: sigma_1 >= sigma_2 = sigma_3
+   ! pi/6 from trx extension   : sigma_1 = sigma_2 >= sigma_3
+   ! 0 from shear              : sigma_2 = (sigma_1 + sigma_3)/2
 
-      ! Eqn:
-         ! $$ sin( -3 \bar{\theta}_{s} ) = \frac{ 3\sqrt{3} }{ 2 } \frac{ det(s) }{ J^{3} }$$
-      ! This is the same equation as the \bar{\theta}_{s} value on wikipedia, link:
-      ! https://en.wikipedia.org/wiki/Lode_coordinates#Lode_angle_%E2%80%93_angular_coordinate_%7F'%22%60UNIQ--postMath-0000002D-QINU%60%22'%7F
+   ! This equation comes from Potts and Zdravković
+
+   ! Sin is an odd function so $ -sin(x) = sin(-x)$
+   ! Eqn:
+      ! $$ sin( -3 \bar{\theta}_{s} ) = \frac{ 3\sqrt{3} }{ 2 } \frac{ det(s) }{ J^{3} }$$
+   ! This is the same equation as the {\theta}_{s} value on wikipedia, link:
+   ! https://en.wikipedia.org/wiki/Lode_coordinates#Lode_angle_%E2%80%93_angular_coordinate_%7F'%22%60UNIQ--postMath-0000002D-QINU%60%22'%7F
 
       real(kind = dp), intent(in) :: stress(6)
       real(kind = dp) :: lode_angle
 
       ! Local variables
       real(kind = dp) :: J, det_s, inside
-      real(kind = dp) :: one = 1.0, two = 2.0, three = 3.0
+      real(kind = dp), parameter :: one = 1.0, two = 2.0, three = 3.0
+      real(kind = dp), parameter :: PI = atan(1.0) * 4.0 ! Calc pi
+      real(kind = dp), parameter :: tolerance = 1e-8
 
       ! TODO: Need to update this function to catch the edge cases
 
@@ -165,11 +171,91 @@ contains
       ! calc the inside of the paranthesis
       ! 3 \sqrt{3} / 2 * det(s) / J^{3}
 
-      inside = (three * sqrt(three) / two) * det_s / J**3
-         
-         ! Calc the lode angle
-         lode_angle = - one * asin(inside) / 3.0
-   end function
+      if (abs(J) < tolerance) then
+         inside = 0.0_dp
+      else
+         ! J isn't zero
+         inside = (three * sqrt(three) / two) * det_s / J**3
+      end if 
+
+      ! Catch if the inside is slightly less than negative one
+      if (inside > -1.0_dp - tolerance .and. inside < -1.0_dp + tolerance) then
+         inside = -1.0_dp
+      else if (inside > 1.0_dp - tolerance .and. inside < 1.0_dp + tolerance) then
+         ! Check if inside is slighty larger than one
+         inside =  1.0_dp
+      end if
+      ! Calc the lode angle
+      lode_angle = - one * asin(inside) / 3.0
+
+      if (lode_angle < -PI/6.0_dp .or. lode_angle > PI/6.0_dp) then
+         ! Stop the program if this thing is outside the right image
+         ! See for info about the domain https://en.wikipedia.org/wiki/Lode_coordinates
+         error stop
+      end if
+   end function calc_lode_angle_s
+   
+   ! function calc_lode_angle_s_v2(stress) result(lode_angle)
+   ! ! TODO: The lode angle should be bounded between
+   ! ! -pi/6 <= \theta <= pi / 6
+   ! ! This equation comes from Potts and Zdravković
+
+   ! ! Sin is an odd function so $ -sin(x) = sin(-x)$
+   ! ! Eqn:
+   !    ! $$ sin( -3 \bar{\theta}_{s} ) = \frac{ 3\sqrt{3} }{ 2 } \frac{ det(s) }{ J^{3} }$$
+   ! ! This is the same equation as the {\theta}_{s} value on wikipedia, link:
+   ! ! https://en.wikipedia.org/wiki/Lode_coordinates#Lode_angle_%E2%80%93_angular_coordinate_%7F'%22%60UNIQ--postMath-0000002D-QINU%60%22'%7F
+
+   ! real(kind = dp), intent(in) :: stress(6)
+   ! real(kind = dp) :: lode_angle
+
+   ! ! Local variables
+   ! real(kind = dp) :: J, det_s, inside
+   ! real(kind = dp), parameter :: one = 1.0, two = 2.0, three = 3.0, &
+   !                               PI = atan(1.0) * 4.0_dp, tolerance = 1e-8
+
+   ! ! TODO: Need to update this function to catch the edge cases
+
+   ! ! Calc J
+   ! J = calc_J_invariant(stress)
+   
+   ! ! Calc the determinant of s
+   ! det_s = calc_s_determinant(stress)
+
+   ! ! calc the inside of the paranthesis
+   ! ! 3 \sqrt{3} / 2 * det(s) / J^{3}
+
+   ! if (abs(J) < tolerance) then
+   !    inside = 0.0_dp
+   ! else
+   !    ! J isn't zero
+   !    inside = (three * sqrt(three) / two) * det_s / J**3
+   ! end if 
+   
+   ! print *, "inside", inside
+
+   ! ! Catch if the inside is close to being one
+   ! if (inside > -1.0_dp - tolerance .and. inside < -1.0_dp + tolerance) then
+   !    inside = -1.0_dp
+   ! end if
+
+   ! if (inside > 1.0_dp - tolerance .and. inside < 1.0_dp + tolerance) then
+   !    inside =  1.0_dp
+   ! end if
+
+   ! print *, "inside", inside
+
+   ! ! Calc the lode angle
+   ! lode_angle = - one * asin(inside) / 3.0
+
+   ! print *, "lode angle:", lode_angle
+
+   ! if (lode_angle < -PI/6.0_dp .or. lode_angle > PI/6.0_dp) then
+   !    ! Stop the program if this thing is outside the right image
+   !    ! See for info about the domain https://en.wikipedia.org/wiki/Lode_coordinates
+   !    error stop
+   ! end if
+   ! end function calc_lode_angle_s_v2
 
    subroutine calc_stress_invariants(Sig, p, q, theta)
       !*********************************************************************
@@ -213,37 +299,17 @@ contains
 
    end subroutine calc_stress_invariants
 
-   ! Wrapper that calculates the stress invariants required for the 
-   ! Mohr-Coulomb in the form presented by Potts
-   subroutine calc_potts_MC_stress_invariants(Sig, p, J, lode_angle)
-      real(kind = dp), intent(in) :: Sig(6)
-      real(kind = dp), intent(out) :: p, J, lode_angle
 
-      ! Calc the mean stress
-      p = calc_mean_stress(Sig)
-
-      ! Calc the J invariants
-      J = calc_J_invariant(Sig)
-
-      ! Calc the lode angle
-      ! TODO: Need to check this for bugs
-      ! May need to add conditions that capture the case where the 
-      ! invariant calculations aren't exactly where they should be
-      ! Alternatively should compare this with the results from
-      ! the version using arctan and the principal stresses
-      lode_angle = calc_lode_angle_bar_s(Sig)
-      
-   end subroutine
 
    ! Calc the derivative of the p invariant wrt. the stress (sigma)
-   function calc_dp_dsigma() result(dp_dsigma)
+   pure function calc_dp_dsigma() result(dp_dsigma)
       real(kind = dp) :: dp_dsigma(6)
 
       dp_dsigma = 1.0_dp / 3.0_dp * [1, 1, 1, 0, 0, 0]
 
    end function calc_dp_dsigma
 
-   function calc_dJ_dsigma(stress) result(dJ_dsigma)
+   pure function calc_dJ_dsigma(stress) result(dJ_dsigma)
       ! Eqn:
          ! 1 / ( 2 J ) [\sigma_{x} - p, \sigma_{y} - p, \sigma_{z} - p,...
          !               2 \tau_{xy} 2 \tau_{yz} 2 \tau_{zx}]
@@ -259,6 +325,9 @@ contains
       ! Calc the mean stress
       mean_stress = calc_mean_stress(stress)
 
+      ! Copy the values of the stress
+      s(:) = stress(:)
+
       ! Calc the deviatoric stress matrix
       s(1:3) = stress(1:3) - mean_stress
 
@@ -270,7 +339,7 @@ contains
    
    end function calc_dJ_dsigma
 
-   function calc_dLodeAngle_bar_s_dsigma(stress) result(dLodeAngle_bar_s_dsigma)
+   pure function calc_dLodeAngle_bar_s_dsigma(stress) result(dLodeAngle_bar_s_dsigma)
       real(kind = dp), intent(in) :: stress(6)
       real(kind = dp) :: dLodeAngle_bar_s_dsigma(6)
 
@@ -280,7 +349,7 @@ contains
       real(kind = dp) :: dJ_dsigma(6), dJ3_dsigma(6)      ! Required invariant derivatives
       
       ! Calc the required invariants
-      lode_angle = calc_lode_angle_bar_s(stress)
+      lode_angle = calc_lode_angle_s(stress)
       J = calc_J_invariant(stress)
       
       det_s = calc_s_determinant(stress)
@@ -308,7 +377,7 @@ contains
    !    real(kind = dp), intent(in) :: stress(6)
    !    real(kind = dp) :: dDetS_sigma(6)
 
-   function calc_dJ3_dsigma(stress) result(dJ3_dsigma)
+   pure function calc_dJ3_dsigma(stress) result(dJ3_dsigma)
       real(kind = dp), intent(in) :: stress(6)
       real(kind = dp) :: dJ3_dsigma(6)
 
@@ -327,14 +396,13 @@ contains
    ! end function calc_dDetS_dsigma
 
    ! Calc the derivative of the J3 deviatoric stress invariant wrt. the deviatoric stress (s)
-   function calc_J3_ds(stress) result(dJ3_ds)
+   pure function calc_J3_ds(stress) result(dJ3_ds)
       real(kind = dp), intent(in) :: stress(6)
       real(kind = dp) :: dJ3_ds(6)
 
       ! Local variables
       real(kind = dp) :: s(6), s_squared(6), voigt_identity(6)
       real(kind = dp) :: trace_s_squared
-      integer(kind = i32) :: voigt_size = size(stress)
       
       ! Calc the deviatoric matrix
       s = calc_s_voigt_vector(stress)
@@ -346,7 +414,7 @@ contains
       trace_s_squared = trace_voigt_vector( s_squared )
 
       ! Get the voigt identity matrix
-      voigt_identity = get_voigt_identity_vector( voigt_size )
+      voigt_identity = get_3d_voigt_identity_vector()
 
       ! Get the derivative
       ! dJ3_ds = s^{2} - 1/2 tr( s^{2} ) \bar{ 1 } 
@@ -354,7 +422,7 @@ contains
 
    end function calc_J3_ds
 
-   function get_ds_dsigma() result(ds_dsigma)
+   pure function get_ds_dsigma() result(ds_dsigma)
       real(kind = dp) :: ds_dsigma(6, 6)
       
       ! Local variables
@@ -375,7 +443,7 @@ contains
       end do
    end function get_ds_dsigma
 
-   function calc_s_voigt_vector(stress) result(s)
+   pure function calc_s_voigt_vector(stress) result(s)
       real(kind=  dp), intent(in) :: stress(6)
       real(kind = dp) :: s(6)
 
@@ -393,7 +461,8 @@ contains
 
    end function calc_s_voigt_vector
    
-   function calc_dJ3_dsigma_2(stress) result(dJ3_dsigma)
+   ! Calc the derivative of the J3 Stress invariant wrt/ the stress voigt vector
+   pure function calc_dJ3_dsigma_2(stress) result(dJ3_dsigma)
       real(kind = dp), intent(in) :: stress(6)
       real(kind = dp) :: dJ3_dsigma(6)
 
@@ -438,8 +507,7 @@ contains
 
       ! Calc dJ3/tau_zx
       dJ3_dsigma(6) = TWO*tau_xy*tau_yz + TWO*tau_zx* ONE_THIRD * (sigma_x - TWO*sigma_y + sigma_z)
-
-
+      
    end function calc_dJ3_dsigma_2
 
 end module mod_stress_invariants

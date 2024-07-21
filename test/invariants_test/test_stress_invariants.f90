@@ -4,8 +4,8 @@ program test_calc_stress_invariants
     use kind_precision_module, only: dp, i32
 
     use mod_stress_invariants, only: calc_mean_stress, calc_J2_invariant, &
-                                        calc_J_invariant, calc_deviatoric_stress, &
-                                        calc_s_determinant, calc_lode_angle_bar_s, &
+                                        calc_J_invariant, calc_q_invariant, &
+                                        calc_s_determinant, calc_lode_angle_s, &
                                         calc_dJ3_dsigma_2, calc_dJ3_dsigma
 
     use mod_general_voigt, only: voigt_2_matrix
@@ -18,7 +18,8 @@ program test_calc_stress_invariants
     implicit none
 
     ! Constants for tolerance in floating-point comparisons
-    real(kind = dp), parameter :: tolerance = 1.0e-6
+    real(kind = dp), parameter :: tolerance = 1.0e-6, &
+                                  PI = atan(1.0_dp) * 4.0_dp
 
     ! Variables for input and output
     real(kind = dp) :: Sig(6), stress_matrix(3, 3), dev_matrix(3,3), expected_Sig(6) ! Stress tensor
@@ -61,7 +62,7 @@ program test_calc_stress_invariants
     J_eig = calc_eig_J(stress_eig_vals)
 
     ! Calc the equivalent stress
-    q = calc_deviatoric_stress(Sig)
+    q = calc_q_invariant(Sig)
     q_eig = calc_eig_q(stress_eig_vals)
 
     ! Calc the J3 invariant ( det(s) )
@@ -83,16 +84,23 @@ program test_calc_stress_invariants
     J3_eig = calc_eig_J3( dev_eig_vals )
 
     ! Calc the lode angle
-    lode_angle = calc_lode_angle_bar_s( Sig )
+    lode_angle = calc_lode_angle_s( Sig )
+    
     lode_angle_eig = calc_eig_lode_angle_bar_s( stress_eig_vals )
+    ! lode_angle = calc_lode_angle_s_v2(Sig)
 
+    print *, ""
+    print *, "Checking stress invariants"
     call test_assert("Test 4: Mean Stress Calc: ," , p , p_eig , tolerance)
     call test_assert("Test 4: J2 Invariant Calc: ,", J2, J2_eig, tolerance)
     call test_assert("Test 4: J  Invariant Calc: ,", J , J_eig , tolerance)
     call test_assert("Test 4: Dev. Stress Calc: ," , q , q_eig , tolerance)
     call test_assert("Test 4: J3 Invariant Calc: ,", J3, J3_eig, tolerance)
     call test_assert("Test 4: Lode Angle Calc  : ,", lode_angle, lode_angle_eig, tolerance)
-    
+
+
+    print *, "Done checking stress invariants"
+
     ! Test the derivatives
     Sig = [10.0_dp, 20.0_dp, 30.0_dp, 40.0_dp, 50.0_dp, 60.0_dp]
     expected_Sig = [100.0_dp, -1100.0_dp, 1000.0_dp, 5200.0_dp, 5800.0_dp, 4000.0_dp]
@@ -108,6 +116,7 @@ program test_calc_stress_invariants
     ! print *, "dJ3_dsigma, varsha  : ", dJ3_dsigma_2
 
     call test_assert_vector("Test 5: dJ3/dsigma: ," , expected_Sig , dJ3_dsigma_2 , tolerance)
+    call test_assert_vector("Test 6: dJ3/dsigma: ," , expected_Sig , dJ3_dsigma , tolerance)
 
 contains
     subroutine test_assert(test_name, actual, expected, tol)

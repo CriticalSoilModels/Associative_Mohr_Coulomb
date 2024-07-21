@@ -19,13 +19,15 @@ contains
         real(kind = dp) :: stiff_matrix(6, 6)
 
         ! Local variables
-        real(kind = dp) :: F1, F2
+        real(kind = dp) :: F1
+        real(kind = dp) :: F2
+        integer(kind = i32) :: i
 
         stiff_matrix(:, :) = 0.0_dp
 
         ! Calc the values needed for the stiffness matrix
         F1 = 2 * shear_modulus * ( 1 - poisson_ratio ) / ( 1- 2 * poisson_ratio )
-        F2 = 2 * shear_modulus * poisson_ratio  ( 1 - 2 * poisson_ratio )
+        F2 = 2 * shear_modulus * poisson_ratio * ( 1 - 2 * poisson_ratio )
 
         !---- Fill the stiffness matrix ----
         
@@ -75,7 +77,7 @@ contains
     !!
     function calc_elastic_stress(strain, stiff_matrix, init_stress) result(new_stress)
         real(kind = dp), intent(in) :: strain(6), stiff_matrix(6,6), init_stress(6)
-        real(kind = dp) :: new_stress
+        real(kind = dp) :: new_stress(6)
 
         ! Local variables
         real(kind =dp) :: stress_inc(6) ! Stress increment

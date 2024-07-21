@@ -7,7 +7,7 @@ module mod_general_voigt
 
 contains
 
-   function voigt_2_matrix(voigt_vector) result(matrix)
+   pure function voigt_2_matrix(voigt_vector) result(matrix)
       real(kind = dp), intent (in) :: voigt_vector(6)
       real(kind = dp) :: matrix(3,3)
 
@@ -39,7 +39,7 @@ contains
    ! TODO: For the time being I'm converting the vectors to matrices
    ! multiplying them then converting it back to a voigt vector
    ! In the future just write out the multiplication
-   function multiply_voigt_vectors(a, b) result(a_times_b)
+   pure function multiply_voigt_vectors(a, b) result(a_times_b)
       ! This function multiplies the vectors as the matrices they actually represent
       ! Note: that this function assumes that the values of the vector are stored in
       ! the following componenet order
@@ -68,7 +68,7 @@ contains
 
    end function multiply_voigt_vectors
 
-   function symmetric_matrix_2_voigt(symmetric_matrix) result(voigt_vector)
+   pure function symmetric_matrix_2_voigt(symmetric_matrix) result(voigt_vector)
       real(kind = dp), intent(in) :: symmetric_matrix(3, 3)
       real(kind = dp) :: voigt_vector(6)
       ! Note: that this function assumes that the values of the vector are stored in
@@ -133,11 +133,21 @@ contains
 
    end function get_voigt_identity_vector
 
-   function trace_voigt_vector(voigt_vector) result(trace)
-        real(kind = dp) :: voigt_vector(6)
+   ! Get the 3d identity matrix in voigt notation
+   pure function get_3d_voigt_identity_vector() result(voigt_I)
+      real(kind = dp) :: voigt_I(6)
+
+      ! Set all the values to zero
+      voigt_I(:) = 0.0_dp
+
+      voigt_I(1:3) = 1.0_dp
+   end function get_3d_voigt_identity_vector
+
+   pure function trace_voigt_vector(voigt_vector) result(trace)
+        real(kind = dp), intent(in) :: voigt_vector(6)
         real(kind = dp) :: trace
 
-        ! Calc the trace of the voight vector
+        ! Calc the trace of the voigt vector
         ! Sum of the diagonal terms
         trace = sum( voigt_vector(1:3) )
         

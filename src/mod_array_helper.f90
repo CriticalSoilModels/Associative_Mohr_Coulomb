@@ -1,5 +1,6 @@
 module mod_array_helper
-   use kind_precision_module, only: dp, i32
+   use kind_precision_module, only: i32
+   use kind_precision_module, only: dp
 
    implicit none
    private
@@ -30,6 +31,7 @@ contains
       integer(kind = i32), intent(in)  :: new_order(:)
       real(kind = dp)    , allocatable :: output_arr(:)
 
+      ! Local variables
       integer(kind=i32) :: i, n
       logical :: is_valid_order
 
