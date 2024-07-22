@@ -6,7 +6,7 @@ program test_calc_stress_invariants
     use mod_stress_invariants, only: calc_mean_stress, calc_J2_invariant, &
                                         calc_J_invariant, calc_q_invariant, &
                                         calc_s_determinant, calc_lode_angle_s, &
-                                        calc_dJ3_dsigma_2, calc_dJ3_dsigma
+                                        calc_potts_dJ3_dsigma
 
     use mod_general_voigt, only: voigt_2_matrix
 
@@ -31,7 +31,7 @@ program test_calc_stress_invariants
     integer(kind = i32) :: i
 
     ! Derivatives
-    real(kind = dp) :: dJ3_dsigma(6), dJ3_dsigma_2(6)
+    real(kind = dp) :: dJ3_dsigma(6)
 
 
     ! Test case 1: Pure hydrostatic stress
@@ -87,7 +87,6 @@ program test_calc_stress_invariants
     lode_angle = calc_lode_angle_s( Sig )
     
     lode_angle_eig = calc_eig_lode_angle_bar_s( stress_eig_vals )
-    ! lode_angle = calc_lode_angle_s_v2(Sig)
 
     print *, ""
     print *, "Checking stress invariants"
@@ -105,18 +104,9 @@ program test_calc_stress_invariants
     Sig = [10.0_dp, 20.0_dp, 30.0_dp, 40.0_dp, 50.0_dp, 60.0_dp]
     expected_Sig = [100.0_dp, -1100.0_dp, 1000.0_dp, 5200.0_dp, 5800.0_dp, 4000.0_dp]
 
-    dJ3_dsigma = calc_dJ3_dsigma(Sig)
-    dJ3_dsigma_2 = calc_dJ3_dsigma_2(Sig)
+    dJ3_dsigma = calc_potts_dJ3_dsigma(Sig)
 
-    ! For some reason my shear terms are half of what the other function and python is generating
-    ! Not sure what's going on here need to test the functions that it use
-    ! dJ3_dsigma(4:6) = dJ3_dsigma(4:6) * 2.0_dp
-
-    ! print *, "dJ3_dsigma, original: ", dJ3_dsigma
-    ! print *, "dJ3_dsigma, varsha  : ", dJ3_dsigma_2
-
-    call test_assert_vector("Test 5: dJ3/dsigma: ," , expected_Sig , dJ3_dsigma_2 , tolerance)
-    call test_assert_vector("Test 6: dJ3/dsigma: ," , expected_Sig , dJ3_dsigma , tolerance)
+    call test_assert_vector("Test 5: dJ3/dsigma: ," , expected_Sig , dJ3_dsigma , tolerance)
 
 contains
     subroutine test_assert(test_name, actual, expected, tol)
@@ -135,7 +125,9 @@ contains
         real(kind = dp), intent(in) :: actual(:), expected(:), tol
 
         if (norm2(actual - expected) > tol) then
-            print *, "Test '", trim(test_name), "' Failed! Expected:", expected, ", Actual:", actual
+            print *, "Test '", trim(test_name), "Failed!"
+            print *, "Expected: ", expected
+            print *, "Actual  : ", actual
         else
             print *, "Test '", trim(test_name), "' Passed."
         endif

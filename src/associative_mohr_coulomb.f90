@@ -55,7 +55,8 @@ contains
 
       ! Local variables
       real :: g_theta_numerator, g_theta_denominator, g_theta
-
+      
+      
       ! Evaluate g(theta)
       g_theta_numerator   = sin(Xi%phi)
       g_theta_denominator = cos(stress_var%lode_angle) + sin(stress_var%lode_angle) * sin(Xi%phi) / sqrt(3.0_dp)

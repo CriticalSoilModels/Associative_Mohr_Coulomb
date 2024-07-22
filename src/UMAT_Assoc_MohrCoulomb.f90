@@ -26,8 +26,8 @@ contains
     subroutine UMAT_assoc_MC(stress, strain_increment, state_vars, props, stiff_matrix, max_iterations)
         use kind_precision_module   , only: dp, i32
 
-        real(kind = dp), intent(inout) :: stress(6), state_vars(:), props(:)  
-        real(kind = dp), intent(in)    :: strain_increment(6)
+        real(kind = dp), intent(inout) :: stress(6), state_vars(:)
+        real(kind = dp), intent(in)    :: strain_increment(6), props(:)  
         real(kind = dp), intent(out)   :: stiff_matrix(6, 6)
         integer(kind = i32), intent(in):: max_iterations ! Make this an input parameter later
         
@@ -39,7 +39,7 @@ contains
         real(kind = dp)     :: yield_surf_tolerance = 1e-8
         integer(kind = i32) :: integration_scheme = 1      ! Make this an input
         integer(kind = i32), parameter :: ortiz_simo = 1                                             
-        logical, parameter :: DEBUG = .TRUE.
+        logical, parameter :: DEBUG = .False.
 
         ! integer(kind = i32) :: max_iterations = 100 ! Make this an input parameter
 
@@ -59,7 +59,6 @@ contains
         
         select case (integration_scheme) ! If yielding select the integration method
             case(ortiz_simo)
-                print *, "Do the evluation here"
                 call ortiz_simo_assoc_mohr_coulomb( yield_surf, stress, Xi, stress_params, strain_increment, stiff_matrix)
                 
             case default
@@ -91,28 +90,33 @@ contains
         class(assoc_MC_yield_surf) :: yield_surf
         integer(kind = i32) :: counter = 0 ! Init counter of iterations to zero
         real(kind = dp) :: dF_dsigma_D_dP_dsigma, D_dp_dsigma(6), dLambda
-        
+        logical, parameter :: DEBUG = .FALSE.
+
         ! Form the stiffness matrix
         stiff_matrix = construct_stiffness_matrix(Xi%G, Xi%enu) 
 
         ! Do the elastic prediction
         stress = calc_elastic_stress(strain_increment, stiff_matrix, stress)
 
-        print *, "elastic update: ", stress
+        if (DEBUG) print *, "elastic update: ", stress
+
         ! Update the stress params
         call stress_params%update_stress_invariants(stress)
 
         ! Update the state params
             ! Not needed for assoc MC
-
+        
         ! Evaluate the yield surface
         call yield_surf%evaluate_surface(Xi, stress_params)
         
         ! Update the stiffness matrix
             ! Don't need to do it in this case
 
-        print *, "Init yield surf value: ", yield_surf%val
-        print *, "yielding condition", yield_surf%is_yielding()
+        if (DEBUG) then
+            print *, "Init yield surf value: ", yield_surf%val
+            print *, "yielding condition", yield_surf%is_yielding()
+        end if
+
         ! If the surface isn't yielding this statement won't activate
         do while (counter <= yield_surf%max_iterations .and. yield_surf%is_yielding())
         ! If yielding is occuring
@@ -155,7 +159,7 @@ contains
             counter = counter + 1
 
         end do
-        print *, "Counter", counter
+        if (DEBUG) print *, "Counter", counter
     end subroutine ortiz_simo_assoc_mohr_coulomb
 
 end module mod_UMAT_assoc_MC
