@@ -27,7 +27,7 @@ contains
 
         ! Calc the values needed for the stiffness matrix
         F1 = 2 * shear_modulus * ( 1 - poisson_ratio ) / ( 1- 2 * poisson_ratio )
-        F2 = 2 * shear_modulus * poisson_ratio * ( 1 - 2 * poisson_ratio )
+        F2 = 2 * shear_modulus * poisson_ratio / ( 1 - 2 * poisson_ratio )
 
         !---- Fill the stiffness matrix ----
         
